@@ -1,0 +1,111 @@
+    {
+    "match_context": {
+        "bowler": "Avesh Khan",
+        "batter": "Jason Roy",
+        "commentators": ["Virat Kohli", "Steve Smith"]
+    },
+    "commentary_log": [
+        {
+        "ball": "0.1",
+        "delivery_type": "Length, 4th stump",
+        "outcome": "0 runs",
+        "dialogue": [
+            {
+            "speaker": "Virat Kohli",
+            "tone": "Intense",
+            "text": "Right, here we go. Avesh starts. Good aggressive line, straight away testing the character. Roy steps out—I like that intent—but just defends it. You gotta feel the ball early on, show him you’re ready for the battle."
+            },
+            {
+            "speaker": "Steve Smith",
+            "tone": "Technical",
+            "text": "Yeah, nice shape there. Just... straightens a touch. Roy’s hands were tight, maybe a bit stiff? Needed to watch it closer onto the bat. No run."
+            }
+        ]
+        },
+        {
+        "ball": "0.2",
+        "delivery_type": "Corridor, length",
+        "outcome": "0 runs",
+        "dialogue": [
+            {
+            "speaker": "Steve Smith",
+            "tone": "Analytical",
+            "text": "Oh, lovely area. That channel... it’s tricky. Roy just opens the face a little late—stabs at it. Hands a bit low. Can’t pierce the gap."
+            },
+            {
+            "speaker": "Virat Kohli",
+            "tone": "Passionate",
+            "text": "See, that’s where Avesh is smart. He’s frustrating him. Roy wants to hit, you can see it in his body language, but the bowler is bossing this space right now. Solid defense, but the pressure is building."
+            }
+        ]
+        },
+        {
+        "ball": "0.3",
+        "delivery_type": "Angled into stumps",
+        "outcome": "0 runs (Chance)",
+        "dialogue": [
+            {
+            "speaker": "Virat Kohli",
+            "tone": "Excited",
+            "text": "Ooooh! Heart in mouth! He tried to flick that—too early! That’s purely the pressure talking. Karthik celebrates, but that was dangerous. If you’re gonna play that, you gotta commit fully!"
+            },
+            {
+            "speaker": "Steve Smith",
+            "tone": "Critical",
+            "text": "A bit of a leading edge there. He closed the face way too early. The bat face needs to come down straighter if it's nipping back. He’s lucky there, mate. Very lucky."
+            }
+        ]
+        },
+        {
+        "ball": "0.4",
+        "delivery_type": "Short, outside off",
+        "outcome": "2 runs",
+        "dialogue": [
+            {
+            "speaker": "Steve Smith",
+            "tone": "Disgusted",
+            "text": "NO! What is that? That’s... that’s horrible technique. Short ball, stops a bit, and he just... flat-bats it like a tennis forehand? No feet, just hands. It’s ugly."
+            },
+            {
+            "speaker": "Virat Kohli",
+            "tone": "Amused",
+            "text": "Hah! Look at that! It doesn't have to be pretty, Smudge, it just has to be effective! He muscled that. Ugly shot, yes, but he gets two runs. Sometimes you just gotta throw the technique out and fight for the run."
+            }
+        ]
+        },
+        {
+        "ball": "0.5",
+        "delivery_type": "Quick, hard length",
+        "outcome": "0 runs (Beaten)",
+        "dialogue": [
+            {
+            "speaker": "Virat Kohli",
+            "tone": "Impressed",
+            "text": "PACE! That is rapid! Look at that zip! Roy tried to make room and slap it, but Avesh said 'Not today.' Beaten for pace. That’s top-quality bowling. I love that aggression from the bowler!"
+            },
+            {
+            "speaker": "Steve Smith",
+            "tone": "Factual",
+            "text": "It’s the extra bounce that got him. Roy’s bat was horizontal... but the ball was up here. You can’t play cross-bat to that length if it’s rising. Beaten all ends up."
+            }
+        ]
+        },
+        {
+        "ball": "0.6",
+        "delivery_type": "Slower offcutter",
+        "outcome": "0 runs",
+        "dialogue": [
+            {
+            "speaker": "Steve Smith",
+            "tone": "Observant",
+            "text": "And he finishes with the change-up. Slower ball, off-cutter. See the grip? Rolled his fingers. Roy picks it late, soft hands... just steers it. Good over."
+            },
+            {
+            "speaker": "Virat Kohli",
+            "tone": "Concluding",
+            "text": "Brilliant over. Avesh won that battle. Kept him quiet, beat him for pace, and finished with discipline. That is exactly the kind of intensity you need. Roy has got nowhere to go."
+            }
+        ]
+        }
+    ]
+    }

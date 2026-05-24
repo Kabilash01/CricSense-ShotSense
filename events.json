@@ -1,0 +1,11 @@
+[
+    {
+        "ball_id": 2,
+        "event": "ball_bat_contact",
+        "frame": 94,
+        "timestamp_sec": 3.14,
+        "confidence": 0.35,
+        "shot_type": "defence",
+        "shot_confidence": 1.0
+    }
+]

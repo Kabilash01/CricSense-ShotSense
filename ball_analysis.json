@@ -1,0 +1,20 @@
+[
+    {
+        "ball_id": 1,
+        "max_speed_kmph": 0.0,
+        "pitch_type": null,
+        "bounce_y_px": null
+    },
+    {
+        "ball_id": 2,
+        "max_speed_kmph": 0.0,
+        "pitch_type": null,
+        "bounce_y_px": null
+    },
+    {
+        "ball_id": 3,
+        "max_speed_kmph": 0.0,
+        "pitch_type": null,
+        "bounce_y_px": null
+    }
+]

@@ -1,0 +1,36 @@
+[
+  {
+    "release_speed_kmph": 409.917596384688,
+    "max_speed_kmph": 140.5537103645356,
+    "pitch_type": "GOOD"
+  },
+  {
+    "release_speed_kmph": 55.01078846153847,
+    "max_speed_kmph": 138.712179229635,
+    "pitch_type": "Full"
+  },
+  {
+    "release_speed_kmph": 80.9183521426093,
+    "max_speed_kmph": 143.751207863196,
+    "pitch_type": "Yorker"
+  },
+  {
+    "release_speed_kmph": 70.57813046540961,
+    "max_speed_kmph": 132.898988,
+    "pitch_type": "SHORT"
+  },
+  {
+    "release_speed_kmph": 54.0812225764094,
+    "max_speed_kmph": 140.614224,
+    "pitch_type": "SHORT"
+  },
+  {
+    "release_speed_kmph": 276.9762044365037,
+    "max_speed_kmph": 629.715729082808,
+    "pitch_type": "GOOD"
+  },
+  {
+    "release_speed_kmph": 431.7277908687572,
+    "max_speed_kmph": 431.7277908687572
+  }
+]

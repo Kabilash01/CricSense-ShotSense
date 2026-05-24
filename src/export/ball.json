@@ -1,0 +1,35 @@
+{
+  "delivery_id": 1,
+  "timestamps": {
+    "start_frame": 120,
+    "release_frame": 134,
+    "bounce_frame": 178,
+    "end_frame": 240
+  },
+  "release": {
+    "frame": 134,
+    "position_px": { "x": 612, "y": 214 },
+    "speed_kmph": 142.6
+  },
+  "bounce": {
+    "frame": 178,
+    "position_px": { "x": 640, "y": 402 }
+  },
+  "speed": {
+    "release_kmph": 142.6,
+    "max_kmph": 146.2,
+    "average_kmph": 138.4
+  },
+  "pitch": {
+    "type": "GOOD",
+    "bounce_y_ratio": 0.48
+  },
+  "trajectory": {
+    "num_points": 42,
+    "path_px": [
+      { "x": 610, "y": 220 },
+      { "x": 615, "y": 230 },
+      { "x": 620, "y": 245 }
+    ]
+  }
+}
