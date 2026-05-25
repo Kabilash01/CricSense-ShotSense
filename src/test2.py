@@ -1,16 +1,14 @@
-# Updated `src/test2.py`
-
 import cv2
 import time
 import json
+
 from src.detection.yolo_detector import YoloBallDetector
-from src.detection.boundary_detector import BoundaryLineDetector
-from src.detection.shot_classifier import ShotClassifier
+
 from src.tracking.tracker import BallTracker
 from src.association.data_association import associate_ball
-from src.events.boundary_logic import intersects
-from src.events.boundary_event import classify_boundary
+
 from src.events.ball_bat import BallBatContact
+
 from src.analytics.trajectory_predictor import TrajectoryPredictor
 
 
@@ -18,17 +16,7 @@ from src.analytics.trajectory_predictor import TrajectoryPredictor
 # CONFIG
 # =========================================================
 
-BALL_MODEL_PATH = r"C:\CricketSense-Ball\ball_test\weights\best.pt"
-
-BOUNDARY_MODEL_PATH = (
-    r"C:\CrickeSense-train\Boundary\runs\detect"
-    r"\boundary_detect\weights\best.pt"
-)
-
-SHOT_MODEL_PATH = (
-    r"C:\CrickeSense-train\Shot\runs\classify"
-    r"\yolov8m_shot_cls\weights\best.pt"
-)
+BALL_MODEL_PATH = r"C:\Cricket-Angle\ball_test\weights\best.pt"
 
 VIDEO_PATH = r"C:\Cricket-Angle\videoplayback.mp4"
 
@@ -47,7 +35,7 @@ def perspective_scale(y, h):
 
 
 # =========================================================
-# INIT MODELS
+# INIT
 # =========================================================
 
 ball_detector = YoloBallDetector(
@@ -56,21 +44,12 @@ ball_detector = YoloBallDetector(
     ball_class_id=0
 )
 
-boundary_detector = BoundaryLineDetector(
-    model_path=BOUNDARY_MODEL_PATH,
-    conf=0.35
-)
-
-shot_classifier = ShotClassifier(
-    model_path=SHOT_MODEL_PATH,
-    conf=0.30
-)
-
 tracker = BallTracker()
 
 contact_detector = BallBatContact()
 
 cap = cv2.VideoCapture(VIDEO_PATH)
+
 assert cap.isOpened(), "❌ Failed to open video"
 
 fps = cap.get(cv2.CAP_PROP_FPS) or 30
@@ -87,26 +66,16 @@ trajectory_predictor = TrajectoryPredictor(
 # =========================================================
 
 ball_id = 0
-boundary_fired = False
 
-# trajectory state
 future_trajectory = []
 shot_angle = None
 shot_name = None
 predicted_distance = 0
 contact_point = None
 
-# outputs
 ball_analysis = []
 events = []
 
-# scoreboard
-runs = 0
-balls = 0
-fours = 0
-sixes = 0
-
-# fps display
 fps_frames = 0
 fps_time = time.time()
 display_fps = 0
@@ -145,26 +114,6 @@ while True:
     predicted = tracker.predict() if tracker.initialized else None
 
     ball_detections = ball_detector.detect(frame, predicted)
-
-    # -----------------------------------------------------
-    # BOUNDARY DETECTION
-    # -----------------------------------------------------
-
-    boundary_boxes = boundary_detector.detect(frame)
-
-    # -----------------------------------------------------
-    # DRAW BOUNDARY
-    # -----------------------------------------------------
-
-    for bx1, by1, bx2, by2, _ in boundary_boxes:
-
-        cv2.rectangle(
-            frame,
-            (bx1, by1),
-            (bx2, by2),
-            (255, 255, 0),
-            2
-        )
 
     # -----------------------------------------------------
     # DRAW BALL DETECTIONS
@@ -222,7 +171,7 @@ while True:
         tracker.missed_frames += 1
 
     # -----------------------------------------------------
-    # BALL - BAT CONTACT
+    # BALL-BAT CONTACT
     # -----------------------------------------------------
 
     if tracker.initialized:
@@ -238,13 +187,7 @@ while True:
             contact_point = (x, y)
 
             # ---------------------------------------------
-            # SHOT MODEL
-            # ---------------------------------------------
-
-            shot_label, shot_conf = shot_classifier.predict(frame)
-
-            # ---------------------------------------------
-            # FUTURE TRAJECTORY PREDICTION
+            # FUTURE TRAJECTORY
             # ---------------------------------------------
 
             future_trajectory = trajectory_predictor.predict(
@@ -267,6 +210,7 @@ while True:
                     final_point
                 )
 
+                # angle-based shot name
                 shot_name = trajectory_predictor.classify_shot(
                     shot_angle
                 )
@@ -285,18 +229,27 @@ while True:
             event = {
                 "ball_id": ball_id,
                 "event": "ball_bat_contact",
+
                 "frame": frame_idx,
-                "timestamp_sec": round(frame_idx / fps, 2),
+
+                "timestamp_sec": round(
+                    frame_idx / fps,
+                    2
+                ),
+
                 "confidence": round(conf, 2),
-                "shot_type_model": shot_label,
-                "shot_model_confidence": round(shot_conf, 2),
+
                 "wagon_wheel_angle": shot_angle,
+
                 "shot_name": shot_name,
+
                 "predicted_distance_m": predicted_distance,
+
                 "contact_point": {
                     "x": x,
                     "y": y
                 },
+
                 "future_trajectory": future_trajectory[:40]
             }
 
@@ -355,76 +308,6 @@ while True:
             )
 
     # -----------------------------------------------------
-    # BOUNDARY EVENT
-    # -----------------------------------------------------
-
-    if tracker.initialized and not boundary_fired:
-
-        x, y = tracker.get_position()
-
-        ball_box = (
-            x - 6,
-            y - 6,
-            x + 6,
-            y + 6
-        )
-
-        for bx1, by1, bx2, by2, _ in boundary_boxes:
-
-            boundary_box = (
-                bx1,
-                by1,
-                bx2,
-                by2
-            )
-
-            if intersects(ball_box, boundary_box):
-
-                boundary_type = classify_boundary(
-                    tracker.get_speed_kmph(
-                        METERS_PER_PIXEL
-                    ),
-                    tracker.has_bounced
-                )
-
-                if boundary_type == "FOUR":
-                    runs += 4
-                    fours += 1
-
-                elif boundary_type == "SIX":
-                    runs += 6
-                    sixes += 1
-
-                event = {
-                    "ball_id": ball_id,
-                    "event": "boundary",
-                    "type": boundary_type,
-                    "frame": frame_idx,
-                    "timestamp_sec": round(
-                        cap.get(cv2.CAP_PROP_POS_MSEC) / 1000,
-                        2
-                    )
-                }
-
-                events.append(event)
-
-                boundary_fired = True
-
-                print("🏏 BOUNDARY:", event)
-
-                cv2.putText(
-                    frame,
-                    boundary_type,
-                    (frame.shape[1] // 2 - 120, 90),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    2.5,
-                    (0, 0, 255),
-                    5
-                )
-
-                break
-
-    # -----------------------------------------------------
     # TRACKER VISUALS
     # -----------------------------------------------------
 
@@ -440,7 +323,10 @@ while True:
             -1
         )
 
-        scale = perspective_scale(y, frame.shape[0])
+        scale = perspective_scale(
+            y,
+            frame.shape[0]
+        )
 
         speed = tracker.get_speed_kmph(
             METERS_PER_PIXEL,
@@ -450,7 +336,7 @@ while True:
         cv2.putText(
             frame,
             f"Speed: {speed:.1f} km/h",
-            (20, 130),
+            (20, 40),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             (0, 255, 255),
@@ -460,7 +346,7 @@ while True:
         cv2.putText(
             frame,
             f"Max: {tracker.max_speed:.1f} km/h",
-            (20, 165),
+            (20, 75),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             (0, 0, 255),
@@ -469,8 +355,10 @@ while True:
 
         if tracker.detect_bounce():
 
-            tracker.pitch_type = tracker.classify_pitch(
-                frame.shape[0]
+            tracker.pitch_type = (
+                tracker.classify_pitch(
+                    frame.shape[0]
+                )
             )
 
         if tracker.pitch_type:
@@ -478,7 +366,7 @@ while True:
             cv2.putText(
                 frame,
                 tracker.pitch_type,
-                (20, 200),
+                (20, 110),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1.0,
                 (0, 255, 0),
@@ -492,67 +380,34 @@ while True:
     if tracker.missed_frames > 15 and tracker.initialized:
 
         ball_analysis.append({
+
             "ball_id": ball_id,
-            "max_speed_kmph": round(tracker.max_speed, 2),
+
+            "max_speed_kmph": round(
+                tracker.max_speed,
+                2
+            ),
+
             "pitch_type": tracker.pitch_type,
+
             "bounce_y_px": tracker.bounce_y,
+
             "shot_angle": shot_angle,
+
             "shot_name": shot_name,
+
             "predicted_distance_m": predicted_distance
         })
 
-        balls += 1
-
         tracker.reset()
+
         contact_detector.reset()
 
-        boundary_fired = False
-
-        # reset trajectory state
         future_trajectory = []
         shot_angle = None
         shot_name = None
         predicted_distance = 0
         contact_point = None
-
-    # -----------------------------------------------------
-    # SCOREBOARD
-    # -----------------------------------------------------
-
-    overs = balls // 6
-    balls_in_over = balls % 6
-
-    score_text = f"{runs}/{balls} ({overs}.{balls_in_over} ov)"
-
-    stats_text = f"4s: {fours}   6s: {sixes}"
-
-    cv2.rectangle(
-        frame,
-        (10, 10),
-        (420, 95),
-        (0, 0, 0),
-        -1
-    )
-
-    cv2.putText(
-        frame,
-        score_text,
-        (20, 45),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1.1,
-        (255, 255, 255),
-        3
-    )
-
-    cv2.putText(
-        frame,
-        stats_text,
-        (20, 80),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
-        (0, 255, 255),
-        2
-    )
 
     # -----------------------------------------------------
     # FPS
@@ -561,7 +416,7 @@ while True:
     cv2.putText(
         frame,
         f"FPS: {display_fps}",
-        (20, 250),
+        (20, 160),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.8,
         (255, 255, 255),
@@ -596,4 +451,3 @@ with open(EVENTS_JSON, "w") as f:
 
 print(f"✅ Saved {len(events)} events → {EVENTS_JSON}")
 print(f"✅ Saved {len(ball_analysis)} deliveries → {OUTPUT_JSON}")
-
