@@ -103,11 +103,13 @@ Cricket-Angle/
 
 | File | Path | Notes |
 |---|---|---|
-| `ball_stump_best.pt` | `models/yolo/ball_stump_best.pt` | **Primary model** — use this |
-| `best.pt` | `ball_test/weights/best.pt` | Best checkpoint from ball_test run |
-| `last.pt` | `ball_test/weights/last.pt` | Last epoch — usually worse than best |
+| `ball_stump_best.pt` | `models/weights/ball_stump_best.pt` | Empty placeholder — ignore |
+| `best.pt` | `ball_test/weights/best.pt` | **YOLOv8 ball detector** — class 0=ball, class 1=stump |
+| `best.pt` | `models/weights/best.pt` | **YOLOv5 bat detector** — class 0=ball, class 1=bat |
+| `last.pt` | `ball_test/weights/last.pt` | YOLOv8 last epoch — usually worse than best |
 
-> **Important:** The hardcoded paths in `src/main.py`, `src/ball_tracking.py`, and `src/test.py` point to `C:\cricket player train\...` and `C:\CricketSense-Ball\...` which do NOT exist. Always update these to `models/yolo/ball_stump_best.pt` (relative) or the absolute path within this repo.
+> **Important:** The hardcoded paths in `src/main.py`, `src/ball_tracking.py`, and `src/test.py` point to `C:\cricket player train\...` and `C:\CricketSense-Ball\...` which do NOT exist. Always update these to `models/weights/ball_stump_best.pt` (relative) or the absolute path within this repo.
+> **Note:** `models/yolo/` was renamed to `models/weights/` to eliminate a Python namespace collision with ultralytics internals during YOLOv5 pickle deserialization.
 
 ## Key Configuration Constants
 

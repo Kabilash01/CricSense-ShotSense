@@ -222,11 +222,13 @@ def detect_contact(
     """
     Detect the first frame where bat-ball contact occurs.
 
-    A frame `f` is a contact iff BOTH cues fire:
-      (a) Ball pixel position is within `proximity_px` of the bat bbox at `f`
-          (using point-to-bbox shortest distance).
-      (b) The angle between the average ball velocity over [f-window, f] and
-          [f, f+window] exceeds `angle_change_deg`.
+    Two cues are used when bat boxes are available:
+      (a) Ball pixel position is within `proximity_px` of the bat bbox.
+      (b) Ball velocity direction changes by >= `angle_change_deg`.
+
+    When bat boxes are sparse or absent (common on broadcast footage),
+    cue (b) alone is used — the frame with the largest velocity direction
+    change that exceeds the threshold is treated as contact.
 
     Short gaps in the ball track (<= `interp_max_gap` frames) are linearly
     interpolated first, because motion blur at contact frequently kills YOLO
@@ -236,7 +238,7 @@ def detect_contact(
     -------
     ContactEvent | None
     """
-    if not ball_track or not bat_boxes:
+    if not ball_track:
         return None
 
     track = interpolate_track(ball_track, max_gap=interp_max_gap)
@@ -244,21 +246,22 @@ def detect_contact(
     if len(frames) < 2 * window + 1:
         return None
 
-    # Pre-sort bat frames so we can pick the nearest available bat box.
-    bat_frames = sorted(bat_boxes.keys())
+    has_bat = bool(bat_boxes)
+    bat_frames = sorted(bat_boxes.keys()) if has_bat else []
 
     def _nearest_bat(f: int) -> Optional[Tuple[int, int, int, int]]:
-        """Bat box at frame f, or the closest one within +/- window frames."""
+        if not has_bat:
+            return None
         if f in bat_boxes:
             return bat_boxes[f]
-        best = None
-        best_d = window + 1
+        best, best_d = None, window + 1
         for bf in bat_frames:
             d = abs(bf - f)
             if d <= window and d < best_d:
-                best = bat_boxes[bf]
-                best_d = d
+                best, best_d = bat_boxes[bf], d
         return best
+
+    best_candidate = None   # (confidence, ContactEvent) — pick largest angle change
 
     for f in frames:
         if (f - window) not in track or (f + window) not in track:
@@ -269,33 +272,34 @@ def detect_contact(
         if v_pre is None or v_post is None:
             continue
 
-        bat = _nearest_bat(f)
-        if bat is None:
-            continue
-
-        prox = _point_to_bbox_distance(track[f], bat)
-        if prox > proximity_px:
-            continue
-
         ang = _angle_between(v_pre, v_post)
         if ang < angle_change_deg:
             continue
 
-        # Confidence: combine how decisively the two thresholds were exceeded.
+        bat = _nearest_bat(f)
+        prox = _point_to_bbox_distance(track[f], bat) if bat is not None else proximity_px
+
+        # When bat box is present, enforce proximity gate.
+        if bat is not None and prox > proximity_px:
+            continue
+
         prox_score = max(0.0, 1.0 - prox / max(proximity_px, 1e-6))
-        ang_score = min(1.0, ang / 90.0)
-        confidence = 0.5 * prox_score + 0.5 * ang_score
+        ang_score  = min(1.0, ang / 90.0)
+        # Weight angle change more heavily when bat boxes are absent.
+        confidence = (0.3 * prox_score + 0.7 * ang_score) if not has_bat \
+                     else (0.5 * prox_score + 0.5 * ang_score)
 
-        return ContactEvent(
-            frame_idx=int(f),
-            ball_xy=(float(track[f][0]), float(track[f][1])),
-            bat_box=tuple(int(v) for v in bat),
-            angle_change_deg=float(ang),
-            proximity_px=float(prox),
-            confidence=float(confidence),
-        )
+        if best_candidate is None or confidence > best_candidate[0]:
+            best_candidate = (confidence, ContactEvent(
+                frame_idx=int(f),
+                ball_xy=(float(track[f][0]), float(track[f][1])),
+                bat_box=tuple(int(v) for v in bat) if bat is not None else None,
+                angle_change_deg=float(ang),
+                proximity_px=float(prox),
+                confidence=float(confidence),
+            ))
 
-    return None
+    return best_candidate[1] if best_candidate else None
 
 
 # ---------------------------------------------------------------------------
@@ -479,7 +483,7 @@ def fit_and_predict_ground(
     """
     track = interpolate_track(ball_track, max_gap=interp_max_gap)
     samples = _collect_post_contact(track, contact_frame, post_contact_frames)
-    if len(samples) < 5:
+    if len(samples) < 3:
         return [], []
 
     frames = np.array([s[0] for s in samples], dtype=np.float64)
@@ -719,10 +723,13 @@ def render_overlay(
     bat_boxes: Dict[int, Tuple[int, int, int, int]],
     result: ShotResult,
     H: np.ndarray,
+    *,
+    ball_boxes: Optional[Dict[int, Tuple[int, int, int, int]]] = None,
 ) -> str:
     """
     Re-render `input_video` to `output_video` with overlays:
-      * ball + bat bboxes (per frame)
+      * ball + bat bboxes (per frame; falls back to a small ball marker if
+        `ball_boxes` is not supplied)
       * vertical "CONTACT" marker on the contact frame
       * predicted 2-second ground trajectory re-projected to image space
       * angle (deg) and shot-name text
@@ -767,7 +774,13 @@ def render_overlay(
                 _draw_text(frame, "bat", (x1, max(0, y1 - 6)),
                            color=(255, 200, 0), scale=0.5, thickness=1)
 
-            # Ball position
+            # Ball bbox / position
+            if ball_boxes is not None and frame_idx in ball_boxes:
+                x1, y1, x2, y2 = ball_boxes[frame_idx]
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 80, 255), 2)
+                _draw_text(frame, "ball", (x1, max(0, y1 - 6)),
+                           color=(0, 80, 255), scale=0.5, thickness=1)
+
             if frame_idx in interp_track:
                 bx, by = interp_track[frame_idx]
                 cv2.circle(frame, (int(bx), int(by)), 6, (0, 0, 255), -1)
@@ -821,48 +834,142 @@ def render_overlay(
 # Convenience: run detector+tracker over a clip to build the inputs
 # ---------------------------------------------------------------------------
 
+def _safe_yolo_load(model_path: str):
+    """
+    Load a YOLO model safely when running from inside the Cricket-Angle repo.
+
+    `models/weights/best.pt` is a YOLOv5 checkpoint.  Load via torch.hub
+    from the official ultralytics/yolov5 repo (auto-downloaded on first use,
+    cached in ~/.cache/torch/hub).  This correctly deserialises the YOLOv5
+    checkpoint and returns an inference-ready model whose output we adapt to
+    the same interface as a YOLO v8 detect model (.xyxy, .cls, .conf).
+    """
+    import sys, torch
+
+    # Remove the repo root from sys.path so hub can import yolov5 cleanly.
+    repo_root = os.path.normcase(os.path.abspath(
+        os.path.join(os.path.dirname(os.path.abspath(model_path)), "..", "..")
+    ))
+    saved_path = sys.path[:]
+    sys.path = [p for p in sys.path
+                if os.path.normcase(os.path.abspath(p or ".")) != repo_root]
+    try:
+        model = torch.hub.load(
+            "ultralytics/yolov5", "custom",
+            path=os.path.abspath(model_path),
+            force_reload=False,
+            verbose=False,
+            trust_repo=True,
+        )
+        model.eval()
+        return _YOLOv5Wrapper(model)
+    finally:
+        sys.path = saved_path
+
+
+def _safe_yolov8_load(model_path: str):
+    """
+    Load a YOLOv8 (ultralytics) checkpoint.  Straightforward — no torch.hub
+    needed because YOLOv8 uses the ultralytics package directly.
+    """
+    from ultralytics import YOLO
+    model = YOLO(model_path)
+    return model
+
+
+class _YOLOv5Wrapper:
+    """
+    Thin wrapper that makes a YOLOv5 hub model look like a ultralytics YOLO
+    detect model for the bat-box extraction loop in build_tracks_from_video.
+
+    Specifically it makes `model(frame, ...)[0].boxes` work the same way.
+    """
+    def __init__(self, hub_model):
+        self._m = hub_model
+        self.names = hub_model.names if isinstance(hub_model.names, dict) \
+            else {i: n for i, n in enumerate(hub_model.names)}
+
+    def __call__(self, frame, conf=0.25, verbose=False):
+        import numpy as np
+        self._m.conf = conf
+        results = self._m(frame[..., ::-1])  # BGR -> RGB for yolov5
+        det = results.xyxy[0].cpu().numpy()  # (N, 6): x1 y1 x2 y2 conf cls
+        return [_YOLOv5Result(det)]
+
+
+class _YOLOv5Result:
+    """Mimics ultralytics Results.boxes interface."""
+    def __init__(self, det):
+        import numpy as np
+        if len(det) == 0:
+            self.boxes = None
+            return
+
+        class _Boxes:
+            pass
+
+        class _Boxes:
+            def __len__(self_):
+                return len(det)
+            def __iter__(self_):
+                return iter(range(len(det)))
+
+        b = _Boxes()
+        b.xyxy = det[:, :4]
+        b.conf = det[:, 4]
+        b.cls  = det[:, 5]
+        self.boxes = b
+
+
 def build_tracks_from_video(
     video_path: str,
     ball_model_path: str,
     bat_model_path: Optional[str] = None,
     *,
     ball_class_id: int = 0,
-    bat_class_id: int = 0,
+    bat_class_id: int = 1,
     ball_conf: float = 0.2,
     bat_conf: float = 0.25,
-) -> Tuple[
-    Dict[int, Tuple[float, float]],
-    Dict[int, Tuple[int, int, int, int]],
-    float,
-]:
+    include_ball_boxes: bool = False,
+):
     """
     Convenience helper that runs the existing YOLO ball detector + tracker
     over a clip and, optionally, a separate bat-detection YOLO model.
 
-    If `bat_model_path` is None or the same as the ball model with multiple
-    classes, you can pass `bat_class_id` to pick the bat class.
+    The same model file can be passed for both `ball_model_path` and
+    `bat_model_path` when it detects multiple classes (e.g. class 0 = ball,
+    class 1 = bat).
 
     Returns
     -------
     ball_track : dict
     bat_boxes  : dict
     fps        : float
+
+    If `include_ball_boxes=True`, returns
+    `(ball_track, ball_boxes, bat_boxes, fps)` where `ball_boxes` is
+    `frame_idx -> (x1, y1, x2, y2)`.
     """
-    # Local imports to keep top-level cheap and avoid mandatory ultralytics dep
-    # for users who only want to call analyse_delivery() on pre-built tracks.
+    import sys
     from src.detection.yolo_detector import YoloBallDetector
     from src.tracking.tracker import BallTracker
     from src.association.data_association import associate_ball
-    from ultralytics import YOLO  # noqa: F401
 
-    detector = YoloBallDetector(
-        ball_model_path, conf=ball_conf, ball_class_id=ball_class_id,
-    )
-
-    bat_model = None
-    if bat_model_path:
-        from ultralytics import YOLO as _YOLO
-        bat_model = _YOLO(bat_model_path)
+    # YoloBallDetector uses ultralytics internally; load it the safe way too.
+    # Temporarily clear the repo root from sys.path (safety belt).
+    repo_root = os.path.normcase(os.path.abspath(os.path.join(
+        os.path.dirname(ball_model_path), "..", ".."
+    )))
+    removed = [p for p in sys.path
+               if os.path.normcase(os.path.abspath(p or ".")) == repo_root]
+    sys.path[:] = [p for p in sys.path if p not in removed]
+    try:
+        detector = YoloBallDetector(
+            ball_model_path, conf=ball_conf, ball_class_id=ball_class_id,
+        )
+        bat_model = _safe_yolo_load(bat_model_path) if bat_model_path else None
+    finally:
+        sys.path.extend(removed)
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -871,6 +978,7 @@ def build_tracks_from_video(
     tracker = BallTracker(fps=int(fps) or 30)
 
     ball_track: Dict[int, Tuple[float, float]] = {}
+    ball_boxes: Dict[int, Tuple[int, int, int, int]] = {}
     bat_boxes: Dict[int, Tuple[int, int, int, int]] = {}
 
     frame_idx = 0
@@ -888,6 +996,8 @@ def build_tracks_from_video(
                 cx, cy = match[0], match[1]
                 tracker.update((cx, cy))
                 ball_track[frame_idx] = (float(cx), float(cy))
+                if len(match) >= 6:
+                    ball_boxes[frame_idx] = tuple(int(v) for v in match[2:6])
 
             # Bat
             if bat_model is not None:
@@ -911,6 +1021,8 @@ def build_tracks_from_video(
     finally:
         cap.release()
 
+    if include_ball_boxes:
+        return ball_track, ball_boxes, bat_boxes, fps
     return ball_track, bat_boxes, fps
 
 

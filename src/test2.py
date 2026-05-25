@@ -16,7 +16,7 @@ from src.events.ball_bat import BallBatContact
 BALL_MODEL_PATH = r"C:\CricketSense-Ball\ball_test\weights\best.pt"
 BOUNDARY_MODEL_PATH = r"C:\CrickeSense-train\Boundary\runs\detect\boundary_detect\weights\best.pt"
 SHOT_MODEL_PATH = r"C:\CrickeSense-train\Shot\runs\classify\yolov8m_shot_cls\weights\best.pt"   # 🔥 SET THIS
-VIDEO_PATH = r"C:\CricketSense\data\samples\test3.mp4"
+VIDEO_PATH = r"C:\Cricket-Angle\videoplayback.mp4"
 
 OUTPUT_JSON = "ball_analysis.json"
 EVENTS_JSON = "events.json"
