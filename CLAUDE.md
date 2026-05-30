@@ -1,6 +1,29 @@
 
 # Cricket-Angle — Project Context
 
+## Active Work (as of 2026-05-30)
+
+The current pipeline is `src/test3.py` (not `test.py` / `test2.py` — those are older). It uses:
+
+- YOLOv8 ball detector: `ball_test/weights/best.pt` (conf=0.10, class 0=ball)
+- YOLOv8 bat detector: `models/bat_detector_v8n/weights/best.pt` (conf=0.05, **bat_class_id=1** because model classes are `{0:'-', 1:'bat'}`)
+- ONNX EfficientNetB0+GRU shot classifier: `models/shot_classifier/shot_classifier.onnx` (converted from RITIK-12/CricketShotClassification via `scripts/convert_to_onnx.py`)
+
+**Open problem**: bat-ball contacts are missed (ball detection is sparse, bat detector hallucinates on stumps/umpire/helmet).
+
+**Agreed next step**: add Detectron2 pose-based wrist-velocity triggering as a third parallel contact trigger. Implement on Ubuntu, not Windows — Detectron2 on Windows is a known multi-hour install. See `memory/project_next_step_detectron2.md` for the full plan.
+
+## Ubuntu Migration Quickstart
+
+If you are reading this on Ubuntu after a Git pull:
+
+1. `python3 -m venv .venv && source .venv/bin/activate`
+2. `pip install -r requirements.txt`
+3. Install Detectron2 from prebuilt wheel matching local CUDA version (see [Detectron2 install guide](https://detectron2.readthedocs.io/en/latest/tutorials/install.html))
+4. Update absolute paths in `src/test3.py` CONFIG block — change `C:\Cricket-Angle\...` to repo-relative paths
+5. Read `memory/MEMORY.md` for full context before making decisions
+6. Verify ONNX classifier loads: `python -c "import onnxruntime as ort; print(ort.get_available_providers())"` — should list `CUDAExecutionProvider`
+
 ## Project Goal
 
 Real-time cricket ball tracking and analytics system. Processes cricket match video to extract per-delivery telemetry: bowling speed, ball trajectory, bounce detection, pitch zone classification, boundary events (FOUR/SIX), and bat-contact events. Outputs annotated video + structured JSON.

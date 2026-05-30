@@ -8,10 +8,10 @@ class YoloBallDetector:
         self.ball_class_id = ball_class_id
 
         # 🔧 BALL SIZE FILTERS (tune later)
-        self.min_area = 20
-        self.max_area = 2500
-        self.min_ratio = 0.6
-        self.max_ratio = 1.4
+        self.min_area = 10
+        self.max_area = 4000
+        self.min_ratio = 0.4
+        self.max_ratio = 2.0
 
     def detect(self, frame, predicted_pos=None):
         results = self.model(frame, conf=self.conf, verbose=False)[0]
@@ -27,6 +27,9 @@ class YoloBallDetector:
             results.boxes.conf
         ):
             if int(cls) != self.ball_class_id:
+                continue
+
+            if conf < 0.08:
                 continue
 
             x1, y1, x2, y2 = map(int, box.tolist())

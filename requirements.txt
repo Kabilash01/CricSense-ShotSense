@@ -3,3 +3,9 @@ opencv-python>=4.8.0
 torch>=2.0.0
 ultralytics>=8.0.0
 pytest>=7.0.0
+
+# ONNX Runtime GPU — for shot classifier inference (no TensorFlow needed at runtime)
+onnxruntime-gpu>=1.17.0
+
+# Only needed once to convert model_weights.h5 → shot_classifier.onnx
+# pip install tensorflow tf2onnx requests

@@ -1,6 +1,6 @@
 import numpy as np
 
-def associate_ball(detections, predicted_pos, max_dist=120):
+def associate_ball(detections, predicted_pos, max_dist=150):
     if not detections:
         return None
 
